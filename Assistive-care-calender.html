@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Assistive Care Calendar & Dashboard</title>
+    <style>
+        :root {
+            --bg-app: #0f172a;
+            --surface: #1e293b;
+            --surface-hover: #334155;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --primary: #38bdf8;
+            --med-alert: #f43f5e;
+            --routine-accent: #10b981;
+            --border: #475569;
+            --anim-curve: cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        [data-theme="light"] {
+            --bg-app: #f1f5f9;
+            --surface: #ffffff;
+            --surface-hover: #f8fafc;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --primary: #0284c7;
+            --med-alert: #e11d48;
+            --routine-accent: #059669;
+            --border: #cbd5e1;
+        }
+
+        [data-theme="high-contrast"] {
+            --bg-app: #000000;
+            --surface: #000000;
+            --surface-hover: #1a1a1a;
+            --text-main: #ffffff;
+            --text-muted: #ffff00;
+            --primary: #00ffff;
+            --med-alert: #ff0000;
+            --routine-accent: #00ff00;
+            --border: #ffffff;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--bg-app);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+            transition: background-color 0.3s var(--anim-curve), color 0.3s var(--anim-curve);
+        }
+
+        .dashboard-layout {
+            max-width: 1300px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+            animation: fadeInView 0.5s var(--anim-curve);
+        }
+
+        @media (min-width: 900px) {
+            .dashboard-layout {
+                grid-template-columns: 350px 1fr;
+            }
+            .main-column {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 20px;
+            }
+            .calendar-span {
+                grid-column: span 2;
+            }
+        }
+
+        /* Control Bar */
+        .top-control-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: var(--surface);
+            padding: 15px 20px;
+            border-radius: 16px;
+            border: 2px solid var(--border);
+            transition: all 0.3s var(--anim-curve);
+        }
+
+        /* Emergency Card Component */
+        .emergency-card {
+            background-color: rgba(244, 63, 94, 0.1);
+            border: 3px solid var(--med-alert);
+            border-radius: 16px;
+            padding: 20px;
+            color: var(--text-main);
+            transition: all 0.3s var(--anim-curve);
+        }
+
+        .emergency-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 10px;
+            font-size: 0.95rem;
+        }
+
+        /* Interactive Calendar Elements */
+        .card {
+            background-color: var(--surface);
+            border: 2px solid var(--border);
+            border-radius: 16px;
+            padding: 20px;
+            box-sizing: border-box;
+            transition: background-color 0.3s var(--anim-curve), border-color 0.3s var(--anim-curve);
+        }
+
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 8px;
+        }
+
+        .weekday-label {
+            text-align: center;
+            font-weight: bold;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            padding-bottom: 5px;
+        }
+
+        .calendar-day {
+            background-color: rgba(255,255,255,0.02);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            aspect-ratio: 1;
+            padding: 8px;
+            position: relative;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), background-color 0.2s, border-color 0.2s;
+        }
+
+        .calendar-day:hover {
+            background-color: var(--surface-hover);
+            transform: scale(1.03);
+        }
+
+        .calendar-day:active {
+            transform: scale(0.97);
+        }
+
+        .calendar-day.active-selected {
+            border: 3px solid var(--primary);
+            background-color: rgba(56, 189, 248, 0.1);
+            box-shadow: 0 0 12px rgba(56, 189, 248, 0.2);
+        }
+
+        .calendar-day.today {
+            background-color: rgba(16, 185, 129, 0.15);
+            font-weight: bold;
+        }
+
+        .day-number {
+            font-size: 1.1rem;
+        }
+
+        /* Advanced Multidose Symbolic Architecture Layout */
+        .symbolic-indicator-cluster {
+            display: flex;
+            gap: 2px;
+            flex-wrap: wrap;
+            max-height: 28px;
+            overflow: hidden;
+            align-items: center;
+            margin-top: 4px;
+        }
+
+        .med-token-symbol {
+            font-size: 0.8rem;
+            animation: popInToken 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+            display: inline-block;
+        }
+
+        .task-dot-symbol {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background-color: var(--primary);
+            animation: popInToken 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+            display: inline-block;
+            margin: 2px;
+        }
+
+        .overflow-count-token {
+            font-size: 0.65rem;
+            font-weight: bold;
+            color: var(--text-muted);
+            margin-left: 1px;
+        }
+
+        /* Checklist Routine Module Animations */
+        .checklist-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.25s var(--anim-curve);
+            animation: slideInRow 0.3s var(--anim-curve) both;
+        }
+
+        .checklist-item:hover {
+            background: var(--surface-hover);
+            transform: translateX(4px);
+        }
+
+        .checklist-item input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            transition: transform 0.2s var(--anim-curve);
+        }
+
+        .checklist-item.completed {
+            opacity: 0.4;
+            text-decoration: line-through;
+            transform: translateX(0) scale(0.99);
+        }
+
+        /* Management Panel Typography & Styles */
+        .mgmt-item-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(0,0,0,0.15);
+            border: 1px solid var(--border);
+            padding: 10px 14px;
+            border-radius: 10px;
+            margin-bottom: 8px;
+            animation: fadeInView 0.25s var(--anim-curve);
+        }
+
+        .mgmt-actions-group {
+            display: flex;
+            gap: 6px;
+        }
+
+        /* Action Controls & Input Panels */
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+            font-weight: 600;
+        }
+
+        .form-control {
+            width: 100%;
+            background-color: rgba(0,0,0,0.2);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            padding: 10px;
+            border-radius: 8px;
+            box-sizing: border-box;
+            font-size: 1rem;
+            transition: border-color 0.2s;
+        }
+
+        .form-control:focus {
+            border-color: var(--primary);
+            outline: none;
+        }
+
+        .btn {
+            background-color: var(--primary);
+            color: #000000;
+            font-weight: bold;
+            border: none;
+            padding: 10px 18px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: transform 0.1s, opacity 0.15s;
+        }
+
+        .btn:hover { opacity: 0.9; }
+        .btn:active { transform: scale(0.96); }
+        .btn-danger { background-color: var(--med-alert); color: white; }
+        .btn-secondary { background-color: var(--surface-hover); color: var(--text-main); border: 1px solid var(--border); }
+
+        .theme-select {
+            background: var(--surface);
+            color: var(--text-main);
+            border: 1px solid var(--border);
+            padding: 8px;
+            border-radius: 6px;
+            font-weight: bold;
+        }
+
+        /* Operational Animation Framework Interpolations */
+        @keyframes fadeInView {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes slideInRow {
+            from { opacity: 0; transform: translateX(-10px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        @keyframes popInToken {
+            from { opacity: 0; transform: scale(0.4); }
+            to { opacity: 1; transform: scale(1); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="dashboard-layout" style="grid-template-columns: 1fr; margin-bottom: 20px;">
+        <div class="top-control-bar">
+            <h2 style="margin:0; font-size: 1.5rem;">🧠 Assistive Health & Routine Console</h2>
+            <div>
+                <label for="theme-picker" style="font-size:0.9rem; margin-right:8px; color:var(--text-muted);">Visual Profile:</label>
+                <select id="theme-picker" class="theme-select" onchange="switchDisplayTheme(this.value)">
+                    <option value="dark">Standard Dark Mode</option>
+                    <option value="light">Soft Light Mode</option>
+                    <option value="high-contrast">High Contrast Accessibility</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <div class="dashboard-layout">
+        
+        <div class="sidebar-column" style="display: flex; flex-direction: column; gap: 20px;">
+            
+            <div class="emergency-card">
+                <h3 style="margin: 0 0 5px 0; color: var(--med-alert);">🚨 Emergency Medical Anchor</h3>
+                <p style="margin:0; font-size:0.85rem; color: var(--text-muted);">Instant data pool for quick communication logs.</p>
+                <div class="emergency-grid">
+                    <div><strong>Ice Contact:</strong><br><span id="display-ice">Jane Doe (555-0199)</span></div>
+                    <div><strong>Blood Type:</strong><br><span id="display-blood">O Positive</span></div>
+                    <div style="grid-column: span 2;"><strong>Critical Allergies:</strong><br><span id="display-allergies">Penicillin, Peanuts</span></div>
+                </div>
+                <button class="btn btn-danger" style="width: 100%; margin-top: 15px; font-size:0.85rem;" onclick="promptEmergencyUpdate()">✏️ Update Profile</button>
+            </div>
+
+            <div class="card">
+                <h3>💊 Log Care / Routine</h3>
+                <div class="form-group">
+                    <label>Log Type</label>
+                    <select id="entry-type" class="form-control" onchange="adjustFormFields(this.value)">
+                        <option value="medication">Medication Adherence</option>
+                        <option value="task">Daily Routine / Appointment</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label id="title-field-label">Medication Name</label>
+                    <input type="text" id="entry-title" class="form-control" placeholder="e.g., Lysinopril">
+                </div>
+                <div id="med-specific-fields">
+                    <div class="form-group">
+                        <label>Dosage Measurement</label>
+                        <input type="text" id="med-dosage" class="form-control" placeholder="e.g., 10mg, 2 tablets">
+                    </div>
+                    <div class="form-group">
+                        <label>Distribution Timing</label>
+                        <input type="text" id="med-time" class="form-control" placeholder="e.g., 08:00 AM, With breakfast">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Repeat Horizon / Timeline</label>
+                    <select id="entry-horizon" class="form-control">
+                        <option value="1">Only Selected Single Day</option>
+                        <option value="7">Every day for Next Week (7 Days)</option>
+                        <option value="30">Every day for Next Month (30 Days)</option>
+                        <option value="365">Every day for Full Year (365 Days)</option>
+                    </select>
+                </div>
+
+                <button class="btn" style="width: 100%;" onclick="saveActiveScheduleItem()">📅 Bind to Selected Day</button>
+            </div>
+        </div>
+
+        <div class="main-column">
+            
+            <div class="card calendar-span">
+                <div class="calendar-header">
+                    <h3 id="calendar-month-year" style="margin:0; font-size:1.4rem;">Month Year</h3>
+                    <div style="display:flex; gap:10px;">
+                        <button class="btn" onclick="shiftCalendarMonth(-1)">◀ Prev</button>
+                        <button class="btn" onclick="shiftCalendarMonth(1)">Next ▶</button>
+                    </div>
+                </div>
+                <div class="calendar-grid" id="calendar-matrix-anchor">
+                    </div>
+            </div>
+
+            <div class="card" style="grid-column: span 2;">
+                <h3 style="margin-top:0;">📋 Support Engine: Checklist Agenda for <span id="checklist-date-label">Selected Day</span></h3>
+                <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:15px;">Check off completed items to confirm actions and track care patterns.</p>
+                <div id="checklist-items-bucket">
+                    </div>
+            </div>
+
+            <div class="card" style="grid-column: span 2;">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 15px;">
+                    <h3 style="margin: 0;">⚙️ Manage Saved Entries</h3>
+                    <button class="btn btn-danger" style="font-size: 0.85rem; padding: 6px 12px;" onclick="purgeSpecificMedicationGlobally()">⚠️ Wipe Medication Worldwide</button>
+                </div>
+                <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:15px;">Modify dosage structures, edit titles, or wipe out logged records permanently.</p>
+                <div id="management-items-bucket">
+                    </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // Core Internal State Engine
+        let internalStorageEngine = {
+            emergency: {
+                ice: "Jane Doe (555-0199)",
+                blood: "O Positive",
+                allergies: "Penicillin, Peanuts"
+            },
+            schedules: {} // Hash mapping key formats 'YYYY-MM-DD' to items arrays
+        };
+
+        let systemClockReference = new Date();
+        let targetSelectedDateStr = getFormattedDateString(systemClockReference);
+
+        // LOW LATENCY SYSTEM SOUND EFFECTS AUDIO ENGINE
+        function triggerAudioFeedback(frequencyProfile) {
+            try {
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                if (!AudioCtx) return;
+                const ctx = new AudioCtx();
+                
+                if (frequencyProfile === 'navigation') {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.frequency.setValueAtTime(580, ctx.currentTime);
+                    gain.gain.setValueAtTime(0.04, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.05);
+                    osc.connect(gain); gain.connect(ctx.destination);
+                    osc.start(); osc.stop(ctx.currentTime + 0.06);
+                } 
+                else if (frequencyProfile === 'completion') {
+                    [440, 554.37, 659.25].forEach((f, i) => {
+                        const osc = ctx.createOscillator();
+                        const gain = ctx.createGain();
+                        osc.frequency.setValueAtTime(f, ctx.currentTime + (i * 0.04));
+                        gain.gain.setValueAtTime(0.03, ctx.currentTime + (i * 0.04));
+                        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + (i * 0.04) + 0.15);
+                        osc.connect(gain); gain.connect(ctx.destination);
+                        osc.start(ctx.currentTime + (i * 0.04)); osc.stop(ctx.currentTime + (i * 0.04) + 0.16);
+                    });
+                }
+                else if (frequencyProfile === 'removal') {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.frequency.setValueAtTime(290, ctx.currentTime);
+                    osc.frequency.linearRampToValueAtTime(180, ctx.currentTime + 0.1);
+                    gain.gain.setValueAtTime(0.05, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.1);
+                    osc.connect(gain); gain.connect(ctx.destination);
+                    osc.start(); osc.stop(ctx.currentTime + 0.12);
+                }
+            } catch (err) {
+                console.warn("AudioContext block verification matrix:", err);
+            }
+        }
+
+        // Initialization Hooks
+        window.addEventListener('load', () => {
+            loadDatabaseSnapshot();
+            refreshEmergencyDisplayUI();
+            renderCalendarMatrix();
+            populateInteractiveChecklist();
+            populateManagementPanel();
+        });
+
+        function getFormattedDateString(dateObj) {
+            let y = dateObj.getFullYear();
+            let m = String(dateObj.getMonth() + 1).padStart(2, '0');
+            let d = String(dateObj.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+
+        function switchDisplayTheme(themeMode) {
+            document.documentElement.setAttribute('data-theme', themeMode);
+            triggerAudioFeedback('navigation');
+        }
+
+        function promptEmergencyUpdate() {
+            triggerAudioFeedback('navigation');
+            let ice = prompt("Enter Primary Emergency Contact Info:", internalStorageEngine.emergency.ice);
+            let blood = prompt("Enter Blood Type Grouping:", internalStorageEngine.emergency.blood);
+            let allergies = prompt("Enter Vital Medical Allergies Alert:", internalStorageEngine.emergency.allergies);
+
+            if (ice !== null) internalStorageEngine.emergency.ice = ice;
+            if (blood !== null) internalStorageEngine.emergency.blood = blood;
+            if (allergies !== null) internalStorageEngine.emergency.allergies = allergies;
+
+            commitDatabaseSnapshot();
+            refreshEmergencyDisplayUI();
+        }
+
+        function refreshEmergencyDisplayUI() {
+            document.getElementById('display-ice').innerText = internalStorageEngine.emergency.ice;
+            document.getElementById('display-blood').innerText = internalStorageEngine.emergency.blood;
+            document.getElementById('display-allergies').innerText = internalStorageEngine.emergency.allergies;
+        }
+
+        function adjustFormFields(typeValue) {
+            triggerAudioFeedback('navigation');
+            const label = document.getElementById('title-field-label');
+            const medFields = document.getElementById('med-specific-fields');
+            
+            if(typeValue === 'medication') {
+                label.innerText = "Medication Name";
+                medFields.style.display = "block";
+            } else {
+                label.innerText = "Task / Appointment Description";
+                medFields.style.display = "none";
+            }
+        }
+
+        function shiftCalendarMonth(direction) {
+            triggerAudioFeedback('navigation');
+            systemClockReference.setMonth(systemClockReference.getMonth() + direction);
+            renderCalendarMatrix();
+        }
+
+        function renderCalendarMatrix() {
+            const anchor = document.getElementById('calendar-matrix-anchor');
+            const label = document.getElementById('calendar-month-year');
+            anchor.innerHTML = "";
+
+            const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+            label.innerText = `${months[systemClockReference.getMonth()]} ${systemClockReference.getFullYear()}`;
+
+            const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+            weekdays.forEach(day => {
+                let div = document.createElement('div');
+                div.className = "weekday-label";
+                div.innerText = day;
+                anchor.appendChild(div);
+            });
+
+            let trackingYear = systemClockReference.getFullYear();
+            let trackingMonth = systemClockReference.getMonth();
+
+            let firstDayIndex = new Date(trackingYear, trackingMonth, 1).getDay();
+            let totalDaysInMonth = new Date(trackingYear, trackingMonth + 1, 0).getDate();
+
+            for(let i = 0; i < firstDayIndex; i++) {
+                let spacer = document.createElement('div');
+                anchor.appendChild(spacer);
+            }
+
+            let todayString = getFormattedDateString(new Date());
+
+            for(let dayNum = 1; dayNum <= totalDaysInMonth; dayNum++) {
+                let cellDateStr = `${trackingYear}-${String(trackingMonth + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+                
+                let dayCell = document.createElement('div');
+                dayCell.className = "calendar-day";
+                if(cellDateStr === todayString) dayCell.classList.add('today');
+                if(cellDateStr === targetSelectedDateStr) dayCell.classList.add('active-selected');
+
+                dayCell.onclick = () => {
+                    triggerAudioFeedback('navigation');
+                    targetSelectedDateStr = cellDateStr;
+                    updateSelectedDayHighlightEffects();
+                    populateInteractiveChecklist();
+                    populateManagementPanel();
+                };
+
+                let numLabel = document.createElement('span');
+                numLabel.className = "day-number";
+                numLabel.innerText = dayNum;
+                dayCell.appendChild(numLabel);
+
+                let clusterWrapper = document.createElement('div');
+                clusterWrapper.className = "symbolic-indicator-cluster";
+                
+                if(internalStorageEngine.schedules[cellDateStr]) {
+                    let dayObjects = internalStorageEngine.schedules[cellDateStr];
+                    
+                    let medicationsTracked = dayObjects.filter(i => i.type === 'medication');
+                    let routinesTracked = dayObjects.filter(i => i.type === 'task');
+
+                    let pillCount = 0;
+                    medicationsTracked.forEach((med, idx) => {
+                        if (pillCount < 3) {
+                            let pillSymbol = document.createElement('span');
+                            pillSymbol.className = "med-token-symbol";
+                            pillSymbol.innerText = "💊";
+                            pillSymbol.style.animationDelay = `${idx * 0.05}s`;
+                            clusterWrapper.appendChild(pillSymbol);
+                            pillCount++;
+                        }
+                    });
+
+                    if (medicationsTracked.length > 3) {
+                        let excessCounter = document.createElement('span');
+                        excessCounter.className = "overflow-count-token";
+                        excessCounter.innerText = `+${medicationsTracked.length - 3}`;
+                        clusterWrapper.appendChild(excessCounter);
+                    }
+
+                    routinesTracked.forEach((task, idx) => {
+                        if (idx < 2) {
+                            let dotSymbol = document.createElement('span');
+                            dotSymbol.className = "task-dot-symbol";
+                            dotSymbol.style.animationDelay = `${idx * 0.05}s`;
+                            clusterWrapper.appendChild(dotSymbol);
+                        }
+                    });
+                }
+                
+                dayCell.appendChild(clusterWrapper);
+                anchor.appendChild(dayCell);
+            }
+        }
+
+        function updateSelectedDayHighlightEffects() {
+            renderCalendarMatrix();
+        }
+
+        function saveActiveScheduleItem() {
+            let type = document.getElementById('entry-type').value;
+            let title = document.getElementById('entry-title').value.trim();
+            let horizonDays = parseInt(document.getElementById('entry-horizon').value, 10);
+            
+            if(!title) {
+                alert("Please enter a valid label profile description.");
+                return;
+            }
+
+            let baseDosage = type === 'medication' ? (document.getElementById('med-dosage').value.trim() || "Unspecified Dosage") : "";
+            let baseTime = type === 'medication' ? (document.getElementById('med-time').value.trim() || "Anytime") : "";
+
+            let sourceParts = targetSelectedDateStr.split('-');
+            let workingDateObj = new Date(parseInt(sourceParts[0], 10), parseInt(sourceParts[1], 10) - 1, parseInt(sourceParts[2], 10));
+
+            for (let i = 0; i < horizonDays; i++) {
+                let loopDateStr = getFormattedDateString(workingDateObj);
+
+                if(!internalStorageEngine.schedules[loopDateStr]) {
+                    internalStorageEngine.schedules[loopDateStr] = [];
+                }
+
+                let payload = {
+                    id: Date.now() + Math.floor(Math.random() * 100000), 
+                    type: type,
+                    title: title,
+                    completed: false
+                };
+
+                if(type === 'medication') {
+                    payload.dosage = baseDosage;
+                    payload.time = baseTime;
+                }
+
+                internalStorageEngine.schedules[loopDateStr].push(payload);
+                workingDateObj.setDate(workingDateObj.getDate() + 1);
+            }
+            
+            document.getElementById('entry-title').value = "";
+            document.getElementById('med-dosage').value = "";
+            document.getElementById('med-time').value = "";
+            document.getElementById('entry-horizon').value = "1"; 
+
+            triggerAudioFeedback('completion');
+            commitDatabaseSnapshot();
+            renderCalendarMatrix();
+            populateInteractiveChecklist();
+            populateManagementPanel();
+        }
+
+        function populateInteractiveChecklist() {
+            document.getElementById('checklist-date-label').innerText = targetSelectedDateStr;
+            const container = document.getElementById('checklist-items-bucket');
+            container.innerHTML = "";
+
+            let dayItems = internalStorageEngine.schedules[targetSelectedDateStr] || [];
+
+            if(dayItems.length === 0) {
+                container.innerHTML = `<p style="color:var(--text-muted); font-style:italic; animation: fadeInView 0.3s ease;">No events or medication guidelines assigned to this day vector.</p>`;
+                return;
+            }
+
+            dayItems.forEach((item, index) => {
+                let div = document.createElement('div');
+                div.className = `checklist-item ${item.completed ? 'completed' : ''}`;
+                div.style.animationDelay = `${index * 0.04}s`;
+                
+                let check = document.createElement('input');
+                check.type = "checkbox";
+                check.checked = item.completed;
+                check.onclick = (e) => {
+                    e.stopPropagation();
+                    item.completed = check.checked;
+                    triggerAudioFeedback(item.completed ? 'completion' : 'navigation');
+                    commitDatabaseSnapshot();
+                    populateInteractiveChecklist();
+                    populateManagementPanel();
+                };
+
+                let details = document.createElement('div');
+                details.style.flex = "1";
+                
+                if(item.type === 'medication') {
+                    details.innerHTML = `<strong style="color:var(--med-alert);">💊 ${item.title}</strong> - ${item.dosage} <span style="color:var(--text-muted); font-size:0.85rem;">(${item.time})</span>`;
+                } else {
+                    details.innerHTML = `<strong style="color:var(--primary);">🗓️ ${item.title}</strong>`;
+                }
+
+                let deleteBtn = document.createElement('button');
+                deleteBtn.className = "btn btn-danger";
+                deleteBtn.innerText = "✕";
+                deleteBtn.style.padding = "4px 8px";
+                deleteBtn.style.fontSize = "0.8rem";
+                deleteBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    removeScheduleItem(item.id);
+                };
+
+                div.appendChild(check);
+                div.appendChild(details);
+                div.appendChild(deleteBtn);
+                
+                div.onclick = () => {
+                    item.completed = !item.completed;
+                    triggerAudioFeedback(item.completed ? 'completion' : 'navigation');
+                    commitDatabaseSnapshot();
+                    populateInteractiveChecklist();
+                    populateManagementPanel();
+                };
+
+                container.appendChild(div);
+            });
+        }
+
+        function populateManagementPanel() {
+            const container = document.getElementById('management-items-bucket');
+            container.innerHTML = "";
+
+            let dayItems = internalStorageEngine.schedules[targetSelectedDateStr] || [];
+
+            if(dayItems.length === 0) {
+                container.innerHTML = `<p style="color:var(--text-muted); font-style:italic;">No active logs available to manage on this date.</p>`;
+                return;
+            }
+
+            dayItems.forEach((item) => {
+                let row = document.createElement('div');
+                row.className = "mgmt-item-row";
+
+                let info = document.createElement('div');
+                if(item.type === 'medication') {
+                    info.innerHTML = `<span>💊 <strong>${item.title}</strong> (${item.dosage}) - <small>${item.time}</small></span>`;
+                } else {
+                    info.innerHTML = `<span>🗓️ <strong>${item.title}</strong></span>`;
+                }
+
+                let actionsGroup = document.createElement('div');
+                actionsGroup.className = "mgmt-actions-group";
+
+                let editBtn = document.createElement('button');
+                editBtn.className = "btn btn-secondary";
+                editBtn.innerText = "✏️ Edit";
+                editBtn.style.padding = "6px 12px";
+                editBtn.style.fontSize = "0.85rem";
+                editBtn.onclick = () => { editScheduleItemInline(item); };
+
+                let delBtn = document.createElement('button');
+                delBtn.className = "btn btn-danger";
+                delBtn.innerText = "🗑️ Delete";
+                delBtn.style.padding = "6px 12px";
+                delBtn.style.fontSize = "0.85rem";
+                delBtn.onclick = () => { removeScheduleItem(item.id); };
+
+                actionsGroup.appendChild(editBtn);
+                actionsGroup.appendChild(delBtn);
+                row.appendChild(info);
+                row.appendChild(actionsGroup);
+                container.appendChild(row);
+            });
+        }
+
+        function editScheduleItemInline(item) {
+            triggerAudioFeedback('navigation');
+            let newTitle = prompt(`Edit name/description context:`, item.title);
+            if (newTitle === null || newTitle.trim() === "") return;
+
+            item.title = newTitle.trim();
+
+            if (item.type === 'medication') {
+                let newDosage = prompt(`Edit dosage configuration details:`, item.dosage);
+                let newTime = prompt(`Edit administration runtime scheduling:`, item.time);
+                
+                if (newDosage !== null) item.dosage = newDosage.trim() || "Unspecified Dosage";
+                if (newTime !== null) item.time = newTime.trim() || "Anytime";
+            }
+
+            triggerAudioFeedback('completion');
+            commitDatabaseSnapshot();
+            renderCalendarMatrix();
+            populateInteractiveChecklist();
+            populateManagementPanel();
+        }
+
+        // NEW FEATURE ENGINE ELEMENT: GLOBAL SPECIFIC MEDICATION PURGING TOOL
+        function purgeSpecificMedicationGlobally() {
+            triggerAudioFeedback('navigation');
+            let targetMedName = prompt("Enter the exact name of the medication to wipe out entirely from ALL days:");
+            
+            if (targetMedName === null || targetMedName.trim() === "") return;
+            let normalizedTarget = targetMedName.trim().toLowerCase();
+
+            let matchesFoundCounter = 0;
+
+            // Loop across all logged date vectors within the system storage
+            for (let dateKey in internalStorageEngine.schedules) {
+                let dailyArray = internalStorageEngine.schedules[dateKey];
+                
+                // Filter down to preserve only items that do not match the normalized criteria
+                let originalLength = dailyArray.length;
+                let filteredArray = dailyArray.filter(item => {
+                    return !(item.type === 'medication' && item.title.toLowerCase() === normalizedTarget);
+                });
+
+                matchesFoundCounter += (originalLength - filteredArray.length);
+
+                if (filteredArray.length === 0) {
+                    delete internalStorageEngine.schedules[dateKey];
+                } else {
+                    internalStorageEngine.schedules[dateKey] = filteredArray;
+                }
+            }
+
+            if (matchesFoundCounter > 0) {
+                triggerAudioFeedback('removal');
+                alert(`Successfully removed ${matchesFoundCounter} scheduled instances of "${targetMedName}" from the ecosystem.`);
+                commitDatabaseSnapshot();
+                renderCalendarMatrix();
+                populateInteractiveChecklist();
+                populateManagementPanel();
+            } else {
+                alert(`No records found matching the medication name: "${targetMedName}".`);
+            }
+        }
+
+        function removeScheduleItem(itemId) {
+            triggerAudioFeedback('removal');
+            let dayItems = internalStorageEngine.schedules[targetSelectedDateStr] || [];
+            internalStorageEngine.schedules[targetSelectedDateStr] = dayItems.filter(i => i.id !== itemId);
+            
+            if(internalStorageEngine.schedules[targetSelectedDateStr].length === 0) {
+                delete internalStorageEngine.schedules[targetSelectedDateStr];
+            }
+
+            commitDatabaseSnapshot();
+            renderCalendarMatrix();
+            populateInteractiveChecklist();
+            populateManagementPanel();
+        }
+
+        function commitDatabaseSnapshot() {
+            localStorage.setItem('ASSISTIVE_CAL_DATA', JSON.stringify(internalStorageEngine));
+        }
+
+        function loadDatabaseSnapshot() {
+            let raw = localStorage.getItem('ASSISTIVE_CAL_DATA');
+            if(raw) {
+                try {
+                    internalStorageEngine = JSON.parse(raw);
+                } catch(e) {
+                    console.error("Local Storage fallback execution required", e);
+                }
+            }
+        }
+    </script>
+</body>
+</html>
